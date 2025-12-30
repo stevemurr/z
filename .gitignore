@@ -1,0 +1,8 @@
+# OS files
+.DS_Store
+
+# Claude Code local settings
+.claude/
+
+# Z data directory (contains secrets, machine configs)
+# This is stored at ~/.z/ not in this repo

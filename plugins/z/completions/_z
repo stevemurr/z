@@ -1,0 +1,461 @@
+#compdef z
+
+# Z - Unified shell tools completion
+
+# Helper: Get machine names from machines.json
+_z_machines() {
+    local machines_file="${HOME}/.z/sys/machines.json"
+    local -a machines
+    machines=("all:Query all machines")
+    if [[ -f "${machines_file}" ]]; then
+        # Add remote machines
+        local remote=$(grep '"name":' "${machines_file}" | sed 's/.*"name": "\([^"]*\)".*/\1/')
+        for m in ${(f)remote}; do
+            machines+=("${m}:Remote machine")
+        done
+    fi
+    _describe -t machines 'machine' machines
+}
+
+_z() {
+    local curcontext="$curcontext" state line
+    typeset -A opt_args
+
+    _arguments -C \
+        '1: :->command' \
+        '*:: :->args'
+
+    case $state in
+        command)
+            local -a commands
+            commands=(
+                'init:Initialize z'
+                'modules:Module registry management'
+                'mod:Module registry management'
+                'enable:Enable a module'
+                'disable:Disable a module'
+                'help:Show help'
+                'env:Environment variable manager'
+                'path:PATH entry manager'
+                'alias:Shell alias manager'
+                'app:Binary installation manager'
+                'bench:Performance benchmarking'
+                'sys:Multi-machine management'
+            )
+            _describe -t commands 'z command' commands
+            ;;
+        args)
+            case $line[1] in
+                enable|disable)
+                    local -a modules
+                    modules=(env path alias app bench sys modules)
+                    _describe -t modules 'module' modules
+                    ;;
+                help)
+                    local -a help_topics
+                    help_topics=(env path alias app bench sys modules)
+                    _describe -t help_topics 'module' help_topics
+                    ;;
+                env)
+                    _z_env_complete
+                    ;;
+                path)
+                    _z_path_complete
+                    ;;
+                alias)
+                    _z_alias_complete
+                    ;;
+                app)
+                    _z_app_complete
+                    ;;
+                bench)
+                    _z_bench_complete
+                    ;;
+                sys)
+                    _z_sys_complete
+                    ;;
+                modules|mod)
+                    _z_modules_complete
+                    ;;
+            esac
+            ;;
+    esac
+}
+
+_z_env_complete() {
+    local curcontext="$curcontext" state line
+    typeset -A opt_args
+
+    _arguments -C \
+        '1: :->subcmd' \
+        '*:: :->args'
+
+    case $state in
+        subcmd)
+            local -a subcmds
+            subcmds=(
+                'add:Add or update a variable'
+                'list:List all variables'
+                'ls:List all variables'
+                'copy:Copy a variable from a remote machine'
+                'push:Push a variable to a remote machine'
+                'rm:Remove a variable'
+                'remove:Remove a variable'
+                'edit:Edit vars file in $EDITOR'
+                'help:Show help'
+            )
+            _describe -t subcmds 'z env command' subcmds
+            ;;
+        args)
+            case $line[1] in
+                add)
+                    _arguments \
+                        '-s[Mark as secret]' \
+                        '--secret[Mark as secret]' \
+                        '-d[Add description]:description:' \
+                        '--desc[Add description]:description:' \
+                        '1:variable name:' \
+                        '2:value:'
+                    ;;
+                list|ls)
+                    _arguments \
+                        '--json[Output as JSON]' \
+                        '-m[Query from machine]:machine:_z_machines' \
+                        '--machine[Query from machine]:machine:_z_machines'
+                    ;;
+                copy)
+                    _arguments \
+                        '-m[Source machine]:machine:_z_machines' \
+                        '--machine[Source machine]:machine:_z_machines' \
+                        '1:variable name:'
+                    ;;
+                push)
+                    _arguments \
+                        '-m[Target machine]:machine:_z_machines' \
+                        '--machine[Target machine]:machine:_z_machines' \
+                        '1:variable name:_z_env_vars'
+                    ;;
+                rm|remove)
+                    _z_env_vars
+                    ;;
+            esac
+            ;;
+    esac
+}
+
+# Helper: Complete with existing env variable names
+_z_env_vars() {
+    local vars_file="${HOME}/.z/env/vars.zsh"
+    if [[ -f "${vars_file}" ]]; then
+        local -a vars
+        vars=(${(f)"$(grep '^export ' "${vars_file}" | sed 's/export \([^=]*\)=.*/\1/')"})
+        _describe -t vars 'variable' vars
+    fi
+}
+
+_z_path_complete() {
+    local curcontext="$curcontext" state line
+    typeset -A opt_args
+
+    _arguments -C \
+        '1: :->subcmd' \
+        '*:: :->args'
+
+    case $state in
+        subcmd)
+            local -a subcmds
+            subcmds=(
+                'add:Add a path entry'
+                'list:List all path entries'
+                'ls:List all path entries'
+                'rm:Remove a path entry'
+                'remove:Remove a path entry'
+                'edit:Edit paths file in $EDITOR'
+                'help:Show help'
+            )
+            _describe -t subcmds 'z path command' subcmds
+            ;;
+        args)
+            case $line[1] in
+                add)
+                    _arguments \
+                        '-d[Add description]:description:' \
+                        '--desc[Add description]:description:' \
+                        '-p[Prepend to PATH (default)]' \
+                        '--prepend[Prepend to PATH (default)]' \
+                        '-a[Append to PATH]' \
+                        '--append[Append to PATH]' \
+                        '1:entry name:' \
+                        '2:path:_files -/'
+                    ;;
+                list|ls)
+                    _arguments \
+                        '--json[Output as JSON]' \
+                        '-m[Query from machine]:machine:_z_machines' \
+                        '--machine[Query from machine]:machine:_z_machines'
+                    ;;
+                rm|remove)
+                    _z_path_entries
+                    ;;
+            esac
+            ;;
+    esac
+}
+
+# Helper: Complete with existing path entry names
+_z_path_entries() {
+    local paths_file="${HOME}/.z/path/paths.zsh"
+    if [[ -f "${paths_file}" ]]; then
+        local -a entries
+        entries=(${(f)"$(grep '^# \[' "${paths_file}" | sed 's/^# \[\([^]]*\)\].*/\1/')"})
+        _describe -t entries 'path entry' entries
+    fi
+}
+
+_z_alias_complete() {
+    local curcontext="$curcontext" state line
+    typeset -A opt_args
+
+    _arguments -C \
+        '1: :->subcmd' \
+        '*:: :->args'
+
+    case $state in
+        subcmd)
+            local -a subcmds
+            subcmds=(
+                'add:Add an alias'
+                'list:List all aliases'
+                'ls:List all aliases'
+                'rm:Remove an alias'
+                'remove:Remove an alias'
+                'edit:Edit aliases file in $EDITOR'
+                'help:Show help'
+            )
+            _describe -t subcmds 'z alias command' subcmds
+            ;;
+        args)
+            case $line[1] in
+                add)
+                    _arguments \
+                        '-d[Add description]:description:' \
+                        '--desc[Add description]:description:' \
+                        '1:alias name:' \
+                        '2:command:'
+                    ;;
+                list|ls)
+                    _arguments \
+                        '--json[Output as JSON]' \
+                        '-m[Query from machine]:machine:_z_machines' \
+                        '--machine[Query from machine]:machine:_z_machines'
+                    ;;
+                rm|remove)
+                    _z_alias_names
+                    ;;
+            esac
+            ;;
+    esac
+}
+
+# Helper: Complete with existing alias names
+_z_alias_names() {
+    local aliases_file="${HOME}/.z/alias/aliases.zsh"
+    if [[ -f "${aliases_file}" ]]; then
+        local -a aliases
+        aliases=(${(f)"$(grep '^# \[' "${aliases_file}" | sed 's/^# \[\([^]]*\)\].*/\1/')"})
+        _describe -t aliases 'alias' aliases
+    fi
+}
+
+_z_app_complete() {
+    local curcontext="$curcontext" state line
+    typeset -A opt_args
+
+    _arguments -C \
+        '1: :->subcmd' \
+        '*:: :->args'
+
+    case $state in
+        subcmd)
+            local -a subcmds
+            subcmds=(
+                'add:Install a binary'
+                'install:Install a binary'
+                'list:List installed binaries'
+                'ls:List installed binaries'
+                'rm:Remove a binary'
+                'uninstall:Remove a binary'
+                'help:Show help'
+            )
+            _describe -t subcmds 'z app command' subcmds
+            ;;
+        args)
+            case $line[1] in
+                add|install)
+                    _files -g '*(-*)'  # Executable files
+                    ;;
+                rm|uninstall)
+                    _z_app_binaries
+                    ;;
+            esac
+            ;;
+    esac
+}
+
+# Helper: Complete with installed binary names
+_z_app_binaries() {
+    local metadata_dir="${HOME}/.z/app/metadata"
+    if [[ -d "${metadata_dir}" ]]; then
+        local -a binaries
+        binaries=(${(f)"$(ls "${metadata_dir}"/*.json 2>/dev/null | xargs -I {} basename {} .json)"})
+        _describe -t binaries 'binary' binaries
+    fi
+}
+
+_z_bench_complete() {
+    local curcontext="$curcontext" state line
+    typeset -A opt_args
+
+    _arguments -C \
+        '1: :->subcmd' \
+        '*:: :->args'
+
+    case $state in
+        subcmd)
+            local -a subcmds
+            subcmds=(
+                'quick:Single startup time measurement'
+                'q:Single startup time measurement'
+                'avg:Average of multiple runs'
+                'average:Average of multiple runs'
+                'profile:Show slowest components'
+                'prof:Show slowest components'
+                'p:Show slowest components'
+                'help:Show help'
+            )
+            _describe -t subcmds 'z bench command' subcmds
+            ;;
+        args)
+            case $line[1] in
+                avg|average)
+                    _message 'number of runs (default: 10)'
+                    ;;
+                profile|prof|p)
+                    _message 'number of lines (default: 20)'
+                    ;;
+            esac
+            ;;
+    esac
+}
+
+_z_sys_complete() {
+    local curcontext="$curcontext" state line
+    typeset -A opt_args
+
+    _arguments -C \
+        '1: :->subcmd' \
+        '*:: :->args'
+
+    case $state in
+        subcmd)
+            local -a subcmds
+            subcmds=(
+                'init:Initialize this machine'
+                'add:Add a remote machine'
+                'rm:Remove a machine'
+                'remove:Remove a machine'
+                'list:List all machines with status'
+                'ls:List all machines with status'
+                'rename:Rename this machine'
+                'help:Show help'
+            )
+            _describe -t subcmds 'z sys command' subcmds
+            ;;
+        args)
+            case $line[1] in
+                add)
+                    _arguments \
+                        '1:machine name:' \
+                        '2:hostname:_hosts' \
+                        '3:user:'
+                    ;;
+                rm|remove)
+                    _z_remote_machines
+                    ;;
+                init|rename)
+                    _message 'machine name'
+                    ;;
+            esac
+            ;;
+    esac
+}
+
+# Helper: Complete with remote machine names
+_z_remote_machines() {
+    local machines_file="${HOME}/.z/sys/machines.json"
+    if [[ -f "${machines_file}" ]]; then
+        local -a machines
+        local remote=$(grep '"name":' "${machines_file}" | sed 's/.*"name": "\([^"]*\)".*/\1/')
+        for m in ${(f)remote}; do
+            machines+=("${m}:Remote machine")
+        done
+        _describe -t machines 'machine' machines
+    fi
+}
+
+_z_modules_complete() {
+    local curcontext="$curcontext" state line
+    typeset -A opt_args
+
+    _arguments -C \
+        '1: :->subcmd' \
+        '*:: :->args'
+
+    case $state in
+        subcmd)
+            local -a subcmds
+            subcmds=(
+                'list:List installed modules'
+                'ls:List installed modules'
+                'search:Search the module registry'
+                'add:Download and install a module'
+                'install:Download and install a module'
+                'rm:Remove an installed module'
+                'remove:Remove an installed module'
+                'uninstall:Remove an installed module'
+                'update:Update modules'
+                'help:Show help'
+            )
+            _describe -t subcmds 'z modules command' subcmds
+            ;;
+        args)
+            case $line[1] in
+                search)
+                    _message 'search query'
+                    ;;
+                add|install)
+                    _message 'module name'
+                    ;;
+                rm|remove|uninstall|update)
+                    _z_installed_modules
+                    ;;
+            esac
+            ;;
+    esac
+}
+
+# Helper: Complete with installed module names
+_z_installed_modules() {
+    local modules_dir="${HOME}/.z/modules"
+    if [[ -d "${modules_dir}" ]]; then
+        local -a modules
+        for dir in "${modules_dir}"/*/; do
+            if [[ -d "${dir}" ]]; then
+                modules+=("$(basename "${dir}")")
+            fi
+        done
+        _describe -t modules 'installed module' modules
+    fi
+}
+
+_z "$@"
