@@ -126,7 +126,8 @@ setup_machine() {
     local machine_name=""
 
     # Get hostname as default
-    local default_name=$(hostname -s 2>/dev/null || echo "localhost")
+    local default_name
+    default_name=$(hostname -s 2>/dev/null || echo "localhost")
 
     echo ""
     info "Multi-machine setup (optional)"
@@ -136,7 +137,7 @@ setup_machine() {
 
     # Only prompt if interactive
     if [[ -t 0 ]]; then
-        read -p "Enter a name for this machine [${default_name}]: " machine_name
+        read -rp "Enter a name for this machine [${default_name}]: " machine_name
         machine_name="${machine_name:-${default_name}}"
 
         # Create machines.json

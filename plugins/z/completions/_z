@@ -34,6 +34,7 @@ _z() {
                 'mod:Module registry management'
                 'enable:Enable a module'
                 'disable:Disable a module'
+                'test:Run tests'
                 'help:Show help'
                 'env:Environment variable manager'
                 'path:PATH entry manager'
@@ -41,6 +42,7 @@ _z() {
                 'app:Binary installation manager'
                 'bench:Performance benchmarking'
                 'sys:Multi-machine management'
+                'term:Remote terminal sessions'
             )
             _describe -t commands 'z command' commands
             ;;
@@ -48,12 +50,17 @@ _z() {
             case $line[1] in
                 enable|disable)
                     local -a modules
-                    modules=(env path alias app bench sys modules)
+                    modules=(env path alias app bench sys modules term)
                     _describe -t modules 'module' modules
+                    ;;
+                test)
+                    local -a test_modules
+                    test_modules=(term)
+                    _describe -t test_modules 'module' test_modules
                     ;;
                 help)
                     local -a help_topics
-                    help_topics=(env path alias app bench sys modules)
+                    help_topics=(env path alias app bench sys modules term)
                     _describe -t help_topics 'module' help_topics
                     ;;
                 env)
@@ -76,6 +83,9 @@ _z() {
                     ;;
                 modules|mod)
                     _z_modules_complete
+                    ;;
+                term)
+                    _z_term_complete
                     ;;
             esac
             ;;
@@ -456,6 +466,74 @@ _z_installed_modules() {
         done
         _describe -t modules 'installed module' modules
     fi
+}
+
+_z_term_complete() {
+    local curcontext="$curcontext" state line
+    typeset -A opt_args
+
+    _arguments -C \
+        '1: :->subcmd' \
+        '*:: :->args'
+
+    case $state in
+        subcmd)
+            local -a subcmds
+            subcmds=(
+                'start:Start a new shareable session'
+                'list:List available sessions'
+                'ls:List available sessions'
+                'attach:Attach to a session'
+                'a:Attach to a session'
+                'stop:Stop a session'
+                'kill:Stop a session'
+                'status:Show current session status'
+                'help:Show help'
+            )
+            _describe -t subcmds 'z term command' subcmds
+            ;;
+        args)
+            case $line[1] in
+                start)
+                    _arguments \
+                        '-d[Session description]:description:' \
+                        '--description[Session description]:description:' \
+                        '--bg[Start in background without attaching]' \
+                        '--background[Start in background without attaching]' \
+                        '1:session name:'
+                    ;;
+                list|ls)
+                    _arguments \
+                        '--json[Output as JSON]' \
+                        '-m[Query from machine]:machine:_z_machines' \
+                        '--machine[Query from machine]:machine:_z_machines'
+                    ;;
+                attach|a)
+                    _arguments \
+                        '-m[Target machine]:machine:_z_machines' \
+                        '--machine[Target machine]:machine:_z_machines' \
+                        '1:session name:_z_term_sessions'
+                    ;;
+                stop|kill)
+                    _z_term_sessions
+                    ;;
+            esac
+            ;;
+    esac
+}
+
+# Helper: Complete with existing tmux session names (z- prefixed)
+_z_term_sessions() {
+    local -a sessions
+    if command -v tmux &>/dev/null; then
+        local tmux_sessions=$(tmux list-sessions -F "#{session_name}" 2>/dev/null | grep "^z-")
+        for s in ${(f)tmux_sessions}; do
+            # Remove z- prefix for display
+            local display_name="${s#z-}"
+            sessions+=("${display_name}:Session ${s}")
+        done
+    fi
+    _describe -t sessions 'session' sessions
 }
 
 _z "$@"
