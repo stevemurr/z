@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# shellcheck disable=SC2034
+# shellcheck disable=SC2034,SC2155
 # Test helper for z bats tests
 
 # Load bats helpers if available
@@ -8,8 +8,9 @@ if [[ -d "${BATS_TEST_DIRNAME}/test_helper/bats-support" ]]; then
     load 'test_helper/bats-assert/load'
 fi
 
-# Get the z plugin directory
-export Z_PLUGIN_DIR="${BATS_TEST_DIRNAME}/../plugins/z"
+# Get the z plugin directory (absolute path)
+export Z_PLUGIN_DIR
+Z_PLUGIN_DIR="$(cd "${BATS_TEST_DIRNAME}/../plugins/z" && pwd)"
 
 # Create a temporary z directory for each test
 setup() {
@@ -23,7 +24,7 @@ setup() {
 
     mkdir -p "${Z_DIR}" "${Z_TERM_DIR}"
 
-    # Create minimal config
+    # Create minimal config with term enabled
     cat > "${Z_CONFIG}" <<'EOF'
 typeset -ga Z_ENABLED_MODULES
 Z_ENABLED_MODULES=(env path alias app bench sys modules term)
@@ -42,24 +43,32 @@ teardown() {
     done
 
     # Clean up any z- prefixed sessions from this test
-    tmux list-sessions -F "#{session_name}" 2>/dev/null | grep "^z-test-" | while read -r session; do
+    tmux list-sessions -F "#{session_name}" 2>/dev/null | grep "^z-" | while read -r session; do
         tmux kill-session -t "${session}" 2>/dev/null || true
     done
 
     # Remove temp directory
-    [[ -d "${Z_TEST_DIR}" ]] && rm -rf "${Z_TEST_DIR}"
+    if [[ -d "${Z_TEST_DIR}" ]]; then
+        rm -rf "${Z_TEST_DIR}"
+    fi
 }
 
 # Helper: run a z command
+# This runs z in a zsh subprocess with the test environment
 run_z() {
-    local cmd="$*"
+    local z_plugin_dir="${Z_PLUGIN_DIR}"
+    local z_dir="${Z_DIR}"
+    local z_config="${Z_CONFIG}"
+    local z_term_dir="${Z_TERM_DIR}"
+
     zsh -c "
-        export Z_DIR='${Z_DIR}'
-        export Z_CONFIG='${Z_CONFIG}'
-        export Z_TERM_DIR='${Z_TERM_DIR}'
-        source '${Z_PLUGIN_DIR}/z.plugin.zsh'
-        z ${cmd}
-    "
+        export Z_DIR='${z_dir}'
+        export Z_CONFIG='${z_config}'
+        export Z_TERM_DIR='${z_term_dir}'
+        export Z_PLUGIN_DIR='${z_plugin_dir}'
+        source '${z_plugin_dir}/z.plugin.zsh'
+        z $*
+    " 2>&1
 }
 
 # Helper: create a test tmux session

@@ -5,10 +5,14 @@
 load test_helper
 
 # ============================================================================
-# Setup/Teardown
+# Setup/Teardown - uses test_helper's setup, adds tmux check
 # ============================================================================
 
 setup() {
+    # Get absolute path to plugin directory
+    Z_PLUGIN_DIR="$(cd "${BATS_TEST_DIRNAME}/../plugins/z" && pwd)"
+    export Z_PLUGIN_DIR
+
     # Create temp directory for test isolation
     local tmpdir
     tmpdir=$(mktemp -d)
@@ -39,7 +43,9 @@ teardown() {
     done
 
     # Remove temp directory
-    [[ -d "${Z_TEST_DIR}" ]] && rm -rf "${Z_TEST_DIR}"
+    if [[ -d "${Z_TEST_DIR}" ]]; then
+        rm -rf "${Z_TEST_DIR}"
+    fi
 }
 
 # ============================================================================
@@ -48,6 +54,8 @@ teardown() {
 
 @test "z term help displays usage" {
     run run_z term help
+    echo "status: $status"
+    echo "output: $output"
     [ "$status" -eq 0 ]
     [[ "$output" == *"z term"* ]]
     [[ "$output" == *"start"* ]]
@@ -67,6 +75,8 @@ teardown() {
 
 @test "z term start creates tmux session with custom name" {
     run run_z term start test-session --bg
+    echo "status: $status"
+    echo "output: $output"
     [ "$status" -eq 0 ]
     [[ "$output" == *"Started session"* ]] || [[ "$output" == *"Starting session"* ]]
 
