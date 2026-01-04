@@ -1,16 +1,16 @@
 #!/usr/bin/env zsh
 # Z core library - shared utilities
 
-# Data directory
-Z_DIR="${HOME}/.z"
-Z_CONFIG="${Z_DIR}/config.zsh"
-Z_MODULES_DIR="${Z_DIR}/modules"
-Z_SYS_DIR="${Z_DIR}/sys"
-Z_MACHINES_FILE="${Z_SYS_DIR}/machines.json"
+# Data directory (allow override for testing)
+Z_DIR="${Z_DIR:-${HOME}/.z}"
+Z_CONFIG="${Z_CONFIG:-${Z_DIR}/config.zsh}"
+Z_MODULES_DIR="${Z_MODULES_DIR:-${Z_DIR}/modules}"
+Z_SYS_DIR="${Z_SYS_DIR:-${Z_DIR}/sys}"
+Z_MACHINES_FILE="${Z_MACHINES_FILE:-${Z_SYS_DIR}/machines.json}"
 
 # Module registry URL
 Z_REGISTRY_URL="${Z_REGISTRY_URL:-https://raw.githubusercontent.com/stevemurr/z/main/registry}"
-Z_REGISTRY_CACHE="${Z_DIR}/registry-cache.json"
+Z_REGISTRY_CACHE="${Z_REGISTRY_CACHE:-${Z_DIR}/registry-cache.json}"
 
 # Built-in modules (shipped with z)
 typeset -ga Z_BUILTIN_MODULES
