@@ -202,29 +202,133 @@ z term status
 ### New Files
 - `plugins/z/modules/term.zsh` - Main module implementation
 - `plugins/z/completions/_z_term` - Zsh completions
+- `tests/term.bats` - Term module tests
+- `tests/test_helper.bash` - Shared test utilities
+- `.github/workflows/test.yml` - CI workflow
 
 ### Modified Files
-- `plugins/z/lib/core.zsh` - Add term to builtin modules list
-- `plugins/z/z.plugin.zsh` - Register term module
+- `plugins/z/lib/core.zsh` - Add term to builtin modules list, add `_z_test` function
+- `plugins/z/z.plugin.zsh` - Register term module and test command
+
+## Testing Strategy
+
+### Framework: bats-core
+Using [bats-core](https://github.com/bats-core/bats-core) for its simplicity and zsh compatibility.
+
+### `z test` Command (Built-in)
+```bash
+z test              # Run all tests
+z test term         # Run only term module tests
+z test --verbose    # Verbose output
+```
+
+### Test Structure
+```
+tests/
+├── term.bats           # z term tests
+├── env.bats            # z env tests (future)
+├── test_helper.bash    # Common setup/teardown
+└── fixtures/
+    └── machines.json   # Test fixtures
+```
+
+### Test Pattern
+```bash
+#!/usr/bin/env bats
+load test_helper
+
+@test "z term start creates tmux session" {
+    run z term start test-session --bg
+    assert_success
+    assert_output --partial "Starting session"
+
+    run tmux has-session -t "z-test-session"
+    assert_success
+}
+
+@test "z term list shows active sessions" {
+    # Setup
+    tmux new-session -d -s "z-test"
+
+    run z term list
+    assert_success
+    assert_output --partial "test"
+
+    # Teardown handled by test_helper
+}
+```
 
 ## Implementation Steps
 
-### Phase 1: Core Functionality
-1. Create `term.zsh` module skeleton with dispatcher
-2. Implement `z term start` - create tmux sessions
-3. Implement `z term list` - local session discovery
-4. Implement `z term attach` - local attachment
-5. Implement `z term stop` - session cleanup
+### Phase 1: Foundation + Testing Infrastructure
+1. Set up bats-core test infrastructure
+2. Add `z test` built-in command
+3. Create `term.zsh` module skeleton with dispatcher
+4. Add GitHub Actions CI workflow
 
-### Phase 2: Remote Support
-6. Implement `z term list -m <machine>` - remote discovery
-7. Implement `z term attach -m <machine>` - remote attachment
-8. Add JSON output for remote queries
+### Phase 2: Core Local Functionality (with tests)
+5. Implement `z term start` + tests
+6. Implement `z term list` (local) + tests
+7. Implement `z term attach` (local) + tests
+8. Implement `z term stop` + tests
 
-### Phase 3: Polish
-9. Add zsh completions
-10. Add help documentation
-11. Handle edge cases (no tmux, session conflicts, etc.)
+### Phase 3: Remote Support (with tests)
+9. Implement `z term list -m <machine>` + tests
+10. Implement `z term attach -m <machine>` + tests
+11. Add JSON output for remote queries + tests
+
+### Phase 4: Polish
+12. Add zsh completions
+13. Add help documentation
+14. Handle edge cases (no tmux, session conflicts, etc.)
+
+## GitHub Actions CI
+
+### Workflow: `.github/workflows/test.yml`
+```yaml
+name: Tests
+
+on:
+  push:
+    branches: [main, claude/*]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y zsh tmux
+          # Install bats-core
+          git clone https://github.com/bats-core/bats-core.git
+          cd bats-core && sudo ./install.sh /usr/local
+          # Install bats helpers
+          git clone https://github.com/bats-core/bats-support.git tests/test_helper/bats-support
+          git clone https://github.com/bats-core/bats-assert.git tests/test_helper/bats-assert
+
+      - name: Run tests
+        run: bats tests/*.bats
+
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run ShellCheck
+        uses: ludeeus/action-shellcheck@master
+        with:
+          scandir: './plugins/z'
+```
+
+### What CI Validates
+- All bats tests pass
+- ShellCheck finds no issues in zsh scripts
+- Tests run on every push to `main` and `claude/*` branches
+- Tests run on all PRs to `main`
 
 ## Warp Terminal Considerations
 
