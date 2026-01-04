@@ -1,4 +1,5 @@
 #!/usr/bin/env bats
+# shellcheck disable=SC2030,SC2031
 # Tests for z term module
 
 load test_helper
@@ -8,13 +9,37 @@ load test_helper
 # ============================================================================
 
 setup() {
-    # Call parent setup
-    eval "$(declare -f setup | tail -n +2)"
+    # Create temp directory for test isolation
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    export Z_TEST_DIR="${tmpdir}"
+    export Z_DIR="${Z_TEST_DIR}/.z"
+    export Z_CONFIG="${Z_DIR}/config.zsh"
+    export Z_TERM_DIR="${Z_DIR}/term"
+
+    mkdir -p "${Z_DIR}" "${Z_TERM_DIR}"
+
+    # Create minimal config
+    cat > "${Z_CONFIG}" <<'EOF'
+typeset -ga Z_ENABLED_MODULES
+Z_ENABLED_MODULES=(env path alias app bench sys modules term)
+EOF
 
     # Require tmux for these tests
     if ! command -v tmux &>/dev/null; then
         skip "tmux not installed"
     fi
+}
+
+teardown() {
+    # Clean up any z- prefixed sessions from this test
+    local session
+    tmux list-sessions -F "#{session_name}" 2>/dev/null | grep "^z-" | while read -r session; do
+        tmux kill-session -t "${session}" 2>/dev/null || true
+    done
+
+    # Remove temp directory
+    [[ -d "${Z_TEST_DIR}" ]] && rm -rf "${Z_TEST_DIR}"
 }
 
 # ============================================================================
@@ -43,13 +68,10 @@ setup() {
 @test "z term start creates tmux session with custom name" {
     run run_z term start test-session --bg
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Starting session"* ]] || [[ "$output" == *"Started session"* ]]
+    [[ "$output" == *"Started session"* ]] || [[ "$output" == *"Starting session"* ]]
 
     # Verify session exists
     session_exists "z-test-session"
-
-    # Cleanup
-    tmux kill-session -t "z-test-session" 2>/dev/null || true
 }
 
 @test "z term start with --bg does not attach" {
@@ -58,9 +80,6 @@ setup() {
 
     # Command should return immediately (not block on attach)
     session_exists "z-bg-test"
-
-    # Cleanup
-    tmux kill-session -t "z-bg-test" 2>/dev/null || true
 }
 
 @test "z term start fails if session already exists" {
@@ -70,9 +89,6 @@ setup() {
     run run_z term start existing --bg
     [ "$status" -ne 0 ]
     [[ "$output" == *"already exists"* ]] || [[ "$output" == *"exists"* ]]
-
-    # Cleanup
-    tmux kill-session -t "z-existing" 2>/dev/null || true
 }
 
 @test "z term start requires tmux" {
@@ -83,9 +99,6 @@ setup() {
     if command -v tmux &>/dev/null; then
         [ "$status" -eq 0 ]
     fi
-
-    # Cleanup
-    tmux kill-session -t "z-check-test" 2>/dev/null || true
 }
 
 # ============================================================================
@@ -94,7 +107,8 @@ setup() {
 
 @test "z term list shows no sessions when none exist" {
     # Kill any existing z- sessions first
-    tmux list-sessions -F "#{session_name}" 2>/dev/null | grep "^z-" | while read s; do
+    local s
+    tmux list-sessions -F "#{session_name}" 2>/dev/null | grep "^z-" | while read -r s; do
         tmux kill-session -t "$s" 2>/dev/null || true
     done
 
@@ -110,9 +124,6 @@ setup() {
     run run_z term list
     [ "$status" -eq 0 ]
     [[ "$output" == *"list-test"* ]]
-
-    # Cleanup
-    tmux kill-session -t "z-list-test" 2>/dev/null || true
 }
 
 @test "z term list --json outputs valid json" {
@@ -123,9 +134,6 @@ setup() {
     [ "$status" -eq 0 ]
     # Should contain JSON array or object markers
     [[ "$output" == "["* ]] || [[ "$output" == "{"* ]] || [[ "$output" == "[]" ]]
-
-    # Cleanup
-    tmux kill-session -t "z-json-test" 2>/dev/null || true
 }
 
 # ============================================================================

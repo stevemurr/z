@@ -126,7 +126,8 @@ setup_machine() {
     local machine_name=""
 
     # Get hostname as default
-    local default_name=$(hostname -s 2>/dev/null || echo "localhost")
+    local default_name
+    default_name=$(hostname -s 2>/dev/null || echo "localhost")
 
     echo ""
     info "Multi-machine setup (optional)"

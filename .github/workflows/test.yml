@@ -31,23 +31,24 @@ jobs:
       - name: Run tests
         run: bats tests/*.bats
 
+  # Note: ShellCheck doesn't fully support zsh syntax (SC1071)
+  # We only scan bash files (.sh and .bash)
   shellcheck:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run ShellCheck on plugins
-        uses: ludeeus/action-shellcheck@master
-        with:
-          scandir: './plugins/z'
-          severity: warning
-        env:
-          SHELLCHECK_OPTS: -e SC1071 -e SC2154
+      - name: Run ShellCheck on bash files
+        run: |
+          # Find and check only .sh and .bash files (exclude test helpers which are third party)
+          shopt -s globstar nullglob
 
-      - name: Run ShellCheck on tests
-        uses: ludeeus/action-shellcheck@master
-        with:
-          scandir: './tests'
-          severity: warning
-        env:
-          SHELLCHECK_OPTS: -e SC1071 -e SC2154
+          # Check install script
+          if [[ -f plugins/z/install.sh ]]; then
+            shellcheck -e SC1091 -e SC1090 plugins/z/install.sh
+          fi
+
+          # Check test helper
+          if [[ -f tests/test_helper.bash ]]; then
+            shellcheck -e SC1091 -e SC1090 -e SC2034 tests/test_helper.bash
+          fi

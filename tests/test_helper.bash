@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2034
 # Test helper for z bats tests
 
 # Load bats helpers if available
@@ -13,7 +14,9 @@ export Z_PLUGIN_DIR="${BATS_TEST_DIRNAME}/../plugins/z"
 # Create a temporary z directory for each test
 setup() {
     # Create temp directory for test isolation
-    export Z_TEST_DIR=$(mktemp -d)
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    export Z_TEST_DIR="${tmpdir}"
     export Z_DIR="${Z_TEST_DIR}/.z"
     export Z_CONFIG="${Z_DIR}/config.zsh"
     export Z_TERM_DIR="${Z_DIR}/term"
@@ -33,12 +36,13 @@ EOF
 # Cleanup after each test
 teardown() {
     # Kill any test tmux sessions
+    local session
     for session in "${Z_TEST_SESSIONS[@]}"; do
         tmux kill-session -t "${session}" 2>/dev/null || true
     done
 
     # Clean up any z- prefixed sessions from this test
-    tmux list-sessions -F "#{session_name}" 2>/dev/null | grep "^z-test-" | while read session; do
+    tmux list-sessions -F "#{session_name}" 2>/dev/null | grep "^z-test-" | while read -r session; do
         tmux kill-session -t "${session}" 2>/dev/null || true
     done
 
@@ -46,20 +50,15 @@ teardown() {
     [[ -d "${Z_TEST_DIR}" ]] && rm -rf "${Z_TEST_DIR}"
 }
 
-# Helper: source the z plugin for testing
-load_z() {
-    # Source in zsh context
-    zsh -c "source '${Z_PLUGIN_DIR}/z.plugin.zsh' && $*"
-}
-
 # Helper: run a z command
 run_z() {
+    local cmd="$*"
     zsh -c "
         export Z_DIR='${Z_DIR}'
         export Z_CONFIG='${Z_CONFIG}'
         export Z_TERM_DIR='${Z_TERM_DIR}'
         source '${Z_PLUGIN_DIR}/z.plugin.zsh'
-        z $*
+        z ${cmd}
     "
 }
 
