@@ -14,11 +14,11 @@ Z_REGISTRY_CACHE="${Z_DIR}/registry-cache.json"
 
 # Built-in modules (shipped with z)
 typeset -ga Z_BUILTIN_MODULES
-Z_BUILTIN_MODULES=(env path alias app bench sys modules)
+Z_BUILTIN_MODULES=(env path alias app bench sys modules term)
 
 # Available modules (built-in + installed)
 typeset -ga Z_AVAILABLE_MODULES
-Z_AVAILABLE_MODULES=(env path alias app bench sys modules)
+Z_AVAILABLE_MODULES=(env path alias app bench sys modules term)
 
 # Get z data directory
 _z_dir() {
@@ -225,6 +225,7 @@ _z_modules_list() {
         [bench]="Shell performance benchmarking"
         [sys]="Multi-machine management"
         [modules]="Module registry"
+        [term]="Remote terminal sessions"
     )
 
     local mod_status mod_type
@@ -354,6 +355,7 @@ Modules:
   bench     Performance benchmarks   z bench avg | z bench profile
   sys       Multi-machine            z sys list | z env list -m <machine>
   modules   Module registry          z modules search | z modules add <name>
+  term      Remote terminals         z term start | z term attach <name>
 
 Commands:
   z init              Initialize z
@@ -362,10 +364,68 @@ Commands:
   z modules add       Install a module
   z enable <mod>      Enable a module
   z disable <mod>     Disable a module
+  z test [module]     Run tests
   z help [module]     Show help
 
 Run 'z <module>' for module-specific help.
 EOF
+}
+
+# Run tests
+_z_test() {
+    local module="$1"
+    local verbose=false
+    local test_dir="${Z_PLUGIN_DIR}/../../tests"
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -v|--verbose)
+                verbose=true
+                shift
+                ;;
+            *)
+                module="$1"
+                shift
+                ;;
+        esac
+    done
+
+    # Check if bats is installed
+    if ! command -v bats &>/dev/null; then
+        echo "Error: bats-core is not installed"
+        echo ""
+        echo "Install bats-core:"
+        echo "  macOS:  brew install bats-core"
+        echo "  Ubuntu: sudo apt install bats"
+        echo "  Manual: git clone https://github.com/bats-core/bats-core && cd bats-core && sudo ./install.sh /usr/local"
+        return 1
+    fi
+
+    # Check if tests directory exists
+    if [[ ! -d "${test_dir}" ]]; then
+        echo "Error: Tests directory not found at ${test_dir}"
+        return 1
+    fi
+
+    local bats_args=()
+    [[ "${verbose}" == true ]] && bats_args+=("--verbose-run")
+
+    if [[ -n "${module}" ]]; then
+        # Run specific module tests
+        local test_file="${test_dir}/${module}.bats"
+        if [[ ! -f "${test_file}" ]]; then
+            echo "Error: No tests found for module '${module}'"
+            echo "Expected: ${test_file}"
+            return 1
+        fi
+        echo "Running tests for module: ${module}"
+        bats "${bats_args[@]}" "${test_file}"
+    else
+        # Run all tests
+        echo "Running all tests..."
+        bats "${bats_args[@]}" "${test_dir}"/*.bats
+    fi
 }
 
 # Show help
@@ -399,6 +459,9 @@ _z_help() {
             ;;
         modules)
             _z_modules help
+            ;;
+        term)
+            _z_term help
             ;;
         *)
             # Check if it's an installed module

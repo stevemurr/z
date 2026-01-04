@@ -51,6 +51,9 @@ z() {
         help|--help|-h)
             _z_help "$@"
             ;;
+        test)
+            _z_test "$@"
+            ;;
 
         # Module dispatch (only if enabled)
         env)
@@ -98,6 +101,14 @@ z() {
                 _z_sys "$@"
             else
                 echo "Module 'sys' is not enabled. Run: z enable sys"
+                return 1
+            fi
+            ;;
+        term)
+            if _z_module_enabled term; then
+                _z_term "$@"
+            else
+                echo "Module 'term' is not enabled. Run: z enable term"
                 return 1
             fi
             ;;
