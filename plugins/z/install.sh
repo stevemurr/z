@@ -137,7 +137,7 @@ setup_machine() {
 
     # Only prompt if interactive
     if [[ -t 0 ]]; then
-        read -p "Enter a name for this machine [${default_name}]: " machine_name
+        read -rp "Enter a name for this machine [${default_name}]: " machine_name
         machine_name="${machine_name:-${default_name}}"
 
         # Create machines.json
