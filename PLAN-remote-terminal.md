@@ -46,61 +46,95 @@ A module that enables connecting to any terminal session running z, both locally
       "tmux_session": "z-agent-work",
       "created": "2026-01-04T12:00:00Z",
       "description": "Claude Code session for project X",
-      "pid": 12345
+      "pid": 12345,
+      "cwd": "/home/user/projects/myapp",
+      "shell": "zsh",
+      "git_branch": "feature/auth",
+      "last_activity": "2026-01-04T14:30:00Z",
+      "command": "npm run dev"
     }
   ]
 }
 ```
 
+### Live Session Data (queried from tmux)
+Some metadata is stored statically, but key fields are queried live from tmux for accuracy:
+
+| Field | Source | Description |
+|-------|--------|-------------|
+| `cwd` | Live query | Current working directory of active pane |
+| `command` | Live query | Currently running command (via `pane_current_command`) |
+| `git_branch` | Live query | Git branch in cwd (if git repo) |
+| `last_activity` | Live query | Last activity timestamp from tmux |
+| `clients` | Live query | Number of attached clients |
+| `created` | Stored | When session was created |
+| `description` | Stored | User-provided description |
+
 ## Commands Specification
 
 ### `z term start [name] [-d description]`
-Start a new shareable terminal session.
+Start a new shareable terminal session and auto-attach to it.
 
 ```bash
-# Start with auto-generated name
+# Start with auto-generated name (auto-attaches)
 z term start
-# → Started session: z-macbook-1704380400
+# → Starting session: z-macbook-1704380400
+# → [attached to tmux session]
 
 # Start with custom name
 z term start agent-work
-# → Started session: z-agent-work
+# → Starting session: z-agent-work
 
 # Start with description
 z term start agent-work -d "Working on auth feature"
+
+# Start in background without attaching
+z term start agent-work --bg
 ```
 
 **Implementation:**
-1. Generate session name (user-provided or `z-{machine}-{timestamp}`)
-2. Create tmux session: `tmux new-session -d -s "z-{name}"`
-3. Record metadata to `~/.z/term/sessions.json`
-4. Attach to the new session
+1. Check if tmux is installed, error if not
+2. Generate session name (user-provided or `z-{machine}-{timestamp}`)
+3. Create tmux session: `tmux new-session -d -s "z-{name}" -c "$(pwd)"`
+4. Record metadata to `~/.z/term/sessions.json`
+5. Auto-attach unless `--bg` flag specified
 
 ### `z term list [-m machine|all] [--json]`
-List available sessions (local and remote).
+List available sessions (local and remote) with rich metadata.
 
 ```bash
 # List local sessions
 z term list
-# → MACHINE     SESSION          CREATED              DESCRIPTION
-#   macbook     z-agent-work     2026-01-04 12:00     Working on auth
-#   macbook     z-build          2026-01-04 11:30     -
+# → SESSION        CWD                    CMD              BRANCH        ACTIVITY      CLIENTS
+#   agent-work     ~/projects/myapp       npm run dev      feature/auth  2m ago        1
+#   build          ~/projects/api         make build       main          15m ago       0
 
 # List from specific remote machine
 z term list -m work
-# → MACHINE     SESSION          CREATED              DESCRIPTION
-#   work        z-deploy         2026-01-04 10:00     Production deploy
+# → SESSION        CWD                    CMD              BRANCH        ACTIVITY      CLIENTS
+#   deploy         ~/deploy               ./deploy.sh      main          5m ago        2
 
-# List from all machines
+# List from all machines (shows machine column)
 z term list -m all
-# → Shows aggregated list from all registered machines
+# → MACHINE   SESSION        CWD                 CMD              BRANCH     ACTIVITY
+#   macbook   agent-work     ~/projects/myapp    npm run dev      feat/auth  2m ago
+#   work      deploy         ~/deploy            ./deploy.sh      main       5m ago
+
+# JSON output for scripting
+z term list --json
 ```
 
 **Implementation:**
-1. Query local tmux: `tmux list-sessions -F "#{session_name}"`
-2. Filter to z- prefixed sessions
-3. If `-m` specified, use `_z_remote_exec` to query remote machines
-4. Display formatted table or JSON
+1. Query local tmux with format string for live data:
+   ```bash
+   tmux list-sessions -F "#{session_name}|#{session_activity}|#{session_attached}"
+   tmux list-panes -t <session> -F "#{pane_current_path}|#{pane_current_command}"
+   ```
+2. Query git branch: `git -C <cwd> branch --show-current 2>/dev/null`
+3. Filter to z- prefixed sessions
+4. If `-m` specified, use `_z_remote_exec` to query remote machines
+5. Format activity as relative time (e.g., "2m ago", "1h ago")
+6. Display formatted table or JSON
 
 ### `z term attach <name|session> [-m machine]`
 Attach to an existing session.
