@@ -54,8 +54,6 @@ teardown() {
 
 @test "z term help displays usage" {
     run run_z term help
-    echo "status: $status"
-    echo "output: $output"
     [ "$status" -eq 0 ]
     [[ "$output" == *"z term"* ]]
     [[ "$output" == *"start"* ]]
@@ -75,8 +73,6 @@ teardown() {
 
 @test "z term start creates tmux session with custom name" {
     run run_z term start test-session --bg
-    echo "status: $status"
-    echo "output: $output"
     [ "$status" -eq 0 ]
     [[ "$output" == *"Started session"* ]] || [[ "$output" == *"Starting session"* ]]
 
