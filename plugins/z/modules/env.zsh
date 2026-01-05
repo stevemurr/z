@@ -50,8 +50,8 @@ Commands:
   list, ls          List all variables
       --json          Output as JSON
       -m, --machine   Query from specific machine (or "all")
-  copy NAME         Copy a variable from a remote machine
-      -m, --machine   Source machine (required)
+  copy NAME         Copy variable value to clipboard
+      -m, --machine   Copy from remote machine to local instead
   push NAME         Push a local variable to a remote machine
       -m, --machine   Target machine (required)
   rm NAME           Remove a variable
@@ -64,7 +64,8 @@ Examples:
   z env list
   z env list -m work
   z env list -m all
-  z env copy API_KEY -m work
+  z env copy SERVER              # copy value to clipboard
+  z env copy API_KEY -m work     # copy from remote to local
   z env push DEBUG_MODE -m server
   z env rm API_KEY
 EOF
@@ -464,7 +465,49 @@ _z_env_edit() {
     echo "Remember to run: source ~/.zshrc"
 }
 
-# Copy a variable from a remote machine
+# Copy a local variable value to clipboard
+_z_env_copy_to_clipboard() {
+    local name="$1"
+    local vars_file="${Z_DIR}/env/vars.zsh"
+
+    # Check if z is initialized
+    if [[ ! -f "${vars_file}" ]]; then
+        echo "Error: Z not initialized. Run 'z init' first."
+        return 1
+    fi
+
+    # Check if variable exists
+    if ! grep -q "^export ${name}=" "${vars_file}" 2>/dev/null; then
+        echo "Error: Variable '${name}' not found"
+        echo "Run 'z env list' to see all variables"
+        return 1
+    fi
+
+    # Extract the value
+    local value=""
+    while IFS= read -r line; do
+        if [[ "${line}" =~ ^export\ ${name}=\"(.*)\"$ ]]; then
+            value="${match[1]}"
+            break
+        fi
+    done < "${vars_file}"
+
+    # Copy to clipboard (macOS: pbcopy, Linux: xclip or xsel)
+    if command -v pbcopy &>/dev/null; then
+        echo -n "${value}" | pbcopy
+    elif command -v xclip &>/dev/null; then
+        echo -n "${value}" | xclip -selection clipboard
+    elif command -v xsel &>/dev/null; then
+        echo -n "${value}" | xsel --clipboard --input
+    else
+        echo "Error: No clipboard utility found (pbcopy, xclip, or xsel)"
+        return 1
+    fi
+
+    echo "Copied ${name} to clipboard"
+}
+
+# Copy a variable value to clipboard (local) or from remote machine
 _z_env_copy() {
     local name=""
     local machine=""
@@ -488,14 +531,14 @@ _z_env_copy() {
     # Validate input
     if [[ -z "${name}" ]]; then
         echo "Error: No variable name provided"
-        echo "Usage: z env copy NAME -m MACHINE"
+        echo "Usage: z env copy NAME [-m MACHINE]"
         return 1
     fi
 
+    # If no machine specified, copy local var to clipboard
     if [[ -z "${machine}" ]]; then
-        echo "Error: No machine specified"
-        echo "Usage: z env copy NAME -m MACHINE"
-        return 1
+        _z_env_copy_to_clipboard "${name}"
+        return $?
     fi
 
     # Get remote data

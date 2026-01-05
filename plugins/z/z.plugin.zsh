@@ -51,6 +51,9 @@ z() {
         help|--help|-h)
             _z_help "$@"
             ;;
+        update)
+            _z_update
+            ;;
 
         # Module dispatch (only if enabled)
         env)

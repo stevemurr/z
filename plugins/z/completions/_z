@@ -41,6 +41,7 @@ _z() {
                 'app:Binary installation manager'
                 'bench:Performance benchmarking'
                 'sys:Multi-machine management'
+                'update:Update z plugin and installed modules'
             )
             _describe -t commands 'z command' commands
             ;;
@@ -97,7 +98,7 @@ _z_env_complete() {
                 'add:Add or update a variable'
                 'list:List all variables'
                 'ls:List all variables'
-                'copy:Copy a variable from a remote machine'
+                'copy:Copy variable value to clipboard'
                 'push:Push a variable to a remote machine'
                 'rm:Remove a variable'
                 'remove:Remove a variable'
@@ -125,9 +126,9 @@ _z_env_complete() {
                     ;;
                 copy)
                     _arguments \
-                        '-m[Source machine]:machine:_z_machines' \
-                        '--machine[Source machine]:machine:_z_machines' \
-                        '1:variable name:'
+                        '-m[Copy from remote machine]:machine:_z_machines' \
+                        '--machine[Copy from remote machine]:machine:_z_machines' \
+                        '1:variable name:_z_env_vars'
                     ;;
                 push)
                     _arguments \

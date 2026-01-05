@@ -417,3 +417,34 @@ _z_help() {
             ;;
     esac
 }
+
+# Update z plugin and modules
+_z_update() {
+    echo "Updating z..."
+    echo ""
+
+    # Update core plugin via git
+    echo "Core plugin:"
+    if [[ -d "${Z_PLUGIN_DIR}/.git" ]]; then
+        local result
+        result=$(cd "${Z_PLUGIN_DIR}" && git pull 2>&1)
+        if [[ $? -eq 0 ]]; then
+            echo "  ${result}"
+        else
+            echo "  Failed: ${result}" >&2
+        fi
+    else
+        echo "  Skipped (not a git repository)"
+    fi
+
+    # Update installed modules
+    local installed=($(_z_get_installed_modules))
+    if [[ ${#installed[@]} -gt 0 ]]; then
+        echo ""
+        echo "Installed modules:"
+        _z_modules update
+    fi
+
+    echo ""
+    echo "Done. Restart your shell to apply changes."
+}
