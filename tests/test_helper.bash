@@ -10,7 +10,7 @@ fi
 
 # Get the z plugin directory (absolute path)
 export Z_PLUGIN_DIR
-Z_PLUGIN_DIR="$(cd "${BATS_TEST_DIRNAME}/../plugins/z" && pwd)"
+Z_PLUGIN_DIR="$(cd "${BATS_TEST_DIRNAME}/.." && pwd)"
 
 # Create a temporary z directory for each test
 setup() {
