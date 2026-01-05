@@ -14,11 +14,11 @@ Z_REGISTRY_CACHE="${Z_REGISTRY_CACHE:-${Z_DIR}/registry-cache.json}"
 
 # Built-in modules (shipped with z)
 typeset -ga Z_BUILTIN_MODULES
-Z_BUILTIN_MODULES=(env path alias app bench sys modules term)
+Z_BUILTIN_MODULES=(env path alias app bench sys modules term web)
 
 # Available modules (built-in + installed)
 typeset -ga Z_AVAILABLE_MODULES
-Z_AVAILABLE_MODULES=(env path alias app bench sys modules term)
+Z_AVAILABLE_MODULES=(env path alias app bench sys modules term web)
 
 # Get z data directory
 _z_dir() {
@@ -190,7 +190,7 @@ _z_init() {
 # Z configuration
 # Enabled modules
 typeset -ga Z_ENABLED_MODULES
-Z_ENABLED_MODULES=(env path alias app bench sys modules)
+Z_ENABLED_MODULES=(env path alias app bench sys modules term web)
 EOF
         echo "Created ${Z_CONFIG}"
         echo "All modules enabled by default"
@@ -226,6 +226,7 @@ _z_modules_list() {
         [sys]="Multi-machine management"
         [modules]="Module registry"
         [term]="Remote terminal sessions"
+        [web]="Browser-based terminal access"
     )
 
     local mod_status mod_type
