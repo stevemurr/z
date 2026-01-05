@@ -54,41 +54,41 @@ _z_source_data() {
 
 # Load installed (downloaded) modules
 _z_load_installed_modules() {
-    if [[ -d "${Z_MODULES_DIR}" ]]; then
-        for module_dir in "${Z_MODULES_DIR}"/*/; do
-            if [[ -d "${module_dir}" ]]; then
-                local module_name=$(basename "${module_dir}")
-                local module_file="${module_dir}${module_name}.zsh"
-                local module_json="${module_dir}module.json"
+    # Check if directory exists and has subdirectories
+    [[ ! -d "${Z_MODULES_DIR}" ]] && return
+    [[ -z "$(ls -A "${Z_MODULES_DIR}" 2>/dev/null)" ]] && return
 
-                # Check if module has required files
-                if [[ -f "${module_json}" ]]; then
-                    # Get main file from module.json or use default
-                    local install_file=$(grep '"install"' "${module_json}" 2>/dev/null | sed 's/.*: *"\([^"]*\)".*/\1/')
-                    [[ -z "${install_file}" ]] && install_file="${module_name}.zsh"
+    for module_dir in "${Z_MODULES_DIR}"/*/; do
+        [[ ! -d "${module_dir}" ]] && continue
 
-                    local full_path="${module_dir}${install_file}"
-                    if [[ -f "${full_path}" ]]; then
-                        source "${full_path}"
-                        # Add to available modules if not already there
-                        if [[ ! " ${Z_AVAILABLE_MODULES[*]} " == *" ${module_name} "* ]]; then
-                            Z_AVAILABLE_MODULES+=("${module_name}")
-                        fi
-                    fi
+        local module_name=$(basename "${module_dir}")
+        local module_file="${module_dir}${module_name}.zsh"
+        local module_json="${module_dir}module.json"
+
+        # Check if module has required files
+        if [[ -f "${module_json}" ]]; then
+            # Get main file from module.json or use default
+            local install_file=$(grep '"install"' "${module_json}" 2>/dev/null | sed 's/.*: *"\([^"]*\)".*/\1/')
+            [[ -z "${install_file}" ]] && install_file="${module_name}.zsh"
+
+            local full_path="${module_dir}${install_file}"
+            if [[ -f "${full_path}" ]]; then
+                source "${full_path}"
+                # Add to available modules if not already there
+                if [[ ! " ${Z_AVAILABLE_MODULES[*]} " == *" ${module_name} "* ]]; then
+                    Z_AVAILABLE_MODULES+=("${module_name}")
                 fi
             fi
-        done
-    fi
+        fi
+    done
 }
 
 # Get list of installed modules
 _z_get_installed_modules() {
     local modules=()
-    if [[ -d "${Z_MODULES_DIR}" ]]; then
+    if [[ -d "${Z_MODULES_DIR}" ]] && [[ -n "$(ls -A "${Z_MODULES_DIR}" 2>/dev/null)" ]]; then
         for module_dir in "${Z_MODULES_DIR}"/*/; do
-            if [[ -d "${module_dir}" ]]; then
-                modules+=($(basename "${module_dir}"))
-            fi
+            [[ -d "${module_dir}" ]] && modules+=($(basename "${module_dir}"))
         done
     fi
     echo "${modules[@]}"
