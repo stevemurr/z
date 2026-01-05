@@ -5,12 +5,9 @@ import 'xterm/css/xterm.css';
 export class TerminalWrapper {
   private terminal: Terminal;
   private fitAddon: FitAddon;
-  private container: HTMLElement;
   private resizeObserver: ResizeObserver;
 
   constructor(container: HTMLElement) {
-    this.container = container;
-
     this.terminal = new Terminal({
       cursorBlink: true,
       fontSize: 14,

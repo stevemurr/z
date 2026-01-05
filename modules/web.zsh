@@ -96,13 +96,21 @@ _z_web_get_url() {
     local port="$2"
 
     if [[ "${host}" == "tailscale" ]]; then
-        # Try to get Tailscale IP
-        local ts_ip=$(tailscale ip -4 2>/dev/null)
-        if [[ -n "${ts_ip}" ]]; then
-            echo "http://${ts_ip}:${port}"
+        # Get Tailscale DNS name for HTTPS
+        local ts_hostname=$(tailscale status --json 2>/dev/null | grep '"DNSName"' | head -1 | sed 's/.*"DNSName": *"\([^"]*\)".*/\1/' | sed 's/\.$//')
+        if [[ -n "${ts_hostname}" ]]; then
+            echo "https://${ts_hostname}:${port}"
         else
-            echo "http://localhost:${port}"
+            # Fallback to IP with HTTP
+            local ts_ip=$(tailscale ip -4 2>/dev/null)
+            if [[ -n "${ts_ip}" ]]; then
+                echo "http://${ts_ip}:${port}"
+            else
+                echo "http://localhost:${port}"
+            fi
         fi
+    elif [[ "${host}" == "localhost" ]]; then
+        echo "http://localhost:${port}"
     else
         echo "http://${host}:${port}"
     fi

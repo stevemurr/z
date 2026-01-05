@@ -51,6 +51,31 @@ func (s *Server) HandleSessions(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(sessions)
 }
 
+// HandleCreateSession handles POST /api/sessions/create
+func (s *Server) HandleCreateSession(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		Name string `json:"name"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		// Allow empty body
+		req.Name = ""
+	}
+
+	name, err := s.sessions.Create(req.Name)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"name": name})
+}
+
 // HandleWebSocket handles WebSocket connections
 func (s *Server) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
@@ -61,9 +86,9 @@ func (s *Server) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	defer conn.Close()
 
 	client := &Client{
-		conn:     conn,
-		server:   s,
-		writeMu:  sync.Mutex{},
+		conn:    conn,
+		server:  s,
+		writeMu: sync.Mutex{},
 	}
 
 	// Send initial session list

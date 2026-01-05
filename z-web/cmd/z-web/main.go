@@ -2,14 +2,15 @@ package main
 
 import (
 	"embed"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io/fs"
 	"log"
-	"net"
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/stevemurr/z/z-web/internal/server"
@@ -23,10 +24,6 @@ func main() {
 	host := flag.String("host", "tailscale", "Host to bind to (tailscale, localhost, or IP)")
 	flag.Parse()
 
-	// Resolve host
-	bindAddr := resolveHost(*host)
-	addr := fmt.Sprintf("%s:%d", bindAddr, *port)
-
 	// Create server
 	srv := server.New()
 
@@ -38,6 +35,7 @@ func main() {
 
 	// API endpoints
 	mux.HandleFunc("/api/sessions", srv.HandleSessions)
+	mux.HandleFunc("/api/sessions/create", srv.HandleCreateSession)
 
 	// Static files (frontend)
 	staticFS, err := fs.Sub(staticFiles, "dist")
@@ -46,81 +44,94 @@ func main() {
 	}
 	mux.Handle("/", http.FileServer(http.FS(staticFS)))
 
-	// Start server
-	fmt.Printf("z-web server starting...\n")
-	fmt.Printf("  Local:   http://%s\n", addr)
-	if bindAddr != "127.0.0.1" && bindAddr != "localhost" {
-		fmt.Printf("  Network: http://%s:%d\n", getOutboundIP(), *port)
-	}
-	fmt.Println()
-	fmt.Println("Press Ctrl+C to stop")
+	// Start server based on host mode
+	if *host == "localhost" {
+		// Local development mode - HTTP only
+		addr := fmt.Sprintf("127.0.0.1:%d", *port)
+		fmt.Printf("z-web server starting (HTTP mode)...\n")
+		fmt.Printf("  Local: http://%s\n", addr)
+		fmt.Println()
+		fmt.Println("Press Ctrl+C to stop")
 
-	if err := http.ListenAndServe(addr, mux); err != nil {
-		log.Fatal("Server error:", err)
-	}
-}
-
-// resolveHost converts host flag to actual bind address
-func resolveHost(host string) string {
-	switch host {
-	case "localhost":
-		return "127.0.0.1"
-	case "tailscale":
-		// Try to get Tailscale IP
-		if ip := getTailscaleIP(); ip != "" {
-			return ip
+		if err := http.ListenAndServe(addr, mux); err != nil {
+			log.Fatal("Server error:", err)
 		}
-		fmt.Println("Warning: Could not detect Tailscale IP, binding to localhost")
-		return "127.0.0.1"
-	default:
-		return host
+	} else {
+		// Tailscale mode - HTTPS required
+		hostname, certFile, keyFile, err := setupTailscaleCerts()
+		if err != nil {
+			log.Fatal("Failed to setup Tailscale certs: ", err)
+		}
+
+		addr := fmt.Sprintf(":%d", *port)
+		fmt.Printf("z-web server starting (HTTPS mode)...\n")
+		fmt.Printf("  URL: https://%s:%d\n", hostname, *port)
+		fmt.Println()
+		fmt.Println("Press Ctrl+C to stop")
+
+		if err := http.ListenAndServeTLS(addr, certFile, keyFile, mux); err != nil {
+			log.Fatal("Server error:", err)
+		}
 	}
 }
 
-// getTailscaleIP tries to get the Tailscale IP address
-func getTailscaleIP() string {
-	// Try tailscale CLI first
-	cmd := exec.Command("tailscale", "ip", "-4")
+// setupTailscaleCerts gets the Tailscale hostname and provisions TLS certificates
+// Returns: hostname, certFile, keyFile, error
+func setupTailscaleCerts() (string, string, string, error) {
+	// Get Tailscale status to find our DNS name
+	cmd := exec.Command("tailscale", "status", "--json")
 	output, err := cmd.Output()
-	if err == nil {
-		ip := strings.TrimSpace(string(output))
-		if ip != "" {
-			return ip
-		}
-	}
-
-	// Fallback: look for tailscale interface
-	interfaces, err := net.Interfaces()
 	if err != nil {
-		return ""
+		return "", "", "", fmt.Errorf("failed to get tailscale status: %w", err)
 	}
 
-	for _, iface := range interfaces {
-		if strings.HasPrefix(iface.Name, "tailscale") || iface.Name == "utun" {
-			addrs, err := iface.Addrs()
-			if err != nil {
-				continue
-			}
-			for _, addr := range addrs {
-				if ipnet, ok := addr.(*net.IPNet); ok && ipnet.IP.To4() != nil {
-					if strings.HasPrefix(ipnet.IP.String(), "100.") {
-						return ipnet.IP.String()
-					}
-				}
-			}
-		}
+	var status struct {
+		Self struct {
+			DNSName string `json:"DNSName"`
+		} `json:"Self"`
+	}
+	if err := json.Unmarshal(output, &status); err != nil {
+		return "", "", "", fmt.Errorf("failed to parse tailscale status: %w", err)
 	}
 
-	return ""
+	hostname := strings.TrimSuffix(status.Self.DNSName, ".")
+	if hostname == "" {
+		return "", "", "", fmt.Errorf("tailscale DNS name not found (is MagicDNS enabled?)")
+	}
+
+	// Determine cert directory
+	certDir, err := getCertDir()
+	if err != nil {
+		return "", "", "", fmt.Errorf("failed to get cert directory: %w", err)
+	}
+
+	certFile := filepath.Join(certDir, hostname+".crt")
+	keyFile := filepath.Join(certDir, hostname+".key")
+
+	// Provision certificates using tailscale cert
+	cmd = exec.Command("tailscale", "cert",
+		"--cert-file", certFile,
+		"--key-file", keyFile,
+		hostname)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return "", "", "", fmt.Errorf("failed to provision certs: %w\n%s", err, output)
+	}
+
+	return hostname, certFile, keyFile, nil
 }
 
-// getOutboundIP gets the preferred outbound IP
-func getOutboundIP() string {
-	conn, err := net.Dial("udp", "8.8.8.8:80")
+// getCertDir returns the directory for storing certificates
+func getCertDir() (string, error) {
+	// Use ~/.config/z-web/certs
+	home, err := os.UserHomeDir()
 	if err != nil {
-		return "unknown"
+		return "", err
 	}
-	defer conn.Close()
-	localAddr := conn.LocalAddr().(*net.UDPAddr)
-	return localAddr.IP.String()
+
+	certDir := filepath.Join(home, ".config", "z-web", "certs")
+	if err := os.MkdirAll(certDir, 0700); err != nil {
+		return "", err
+	}
+
+	return certDir, nil
 }

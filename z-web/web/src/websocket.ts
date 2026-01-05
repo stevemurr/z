@@ -14,6 +14,8 @@ export class WebSocketClient {
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const url = `${protocol}//${window.location.host}/ws`;
 
+      console.log('WebSocket connecting to:', url);
+
       this.ws = new WebSocket(url);
 
       this.ws.onopen = () => {
@@ -22,8 +24,8 @@ export class WebSocketClient {
         resolve();
       };
 
-      this.ws.onclose = () => {
-        console.log('WebSocket disconnected');
+      this.ws.onclose = (event) => {
+        console.log('WebSocket disconnected, code:', event.code, 'reason:', event.reason);
         this.attemptReconnect();
       };
 

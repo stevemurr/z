@@ -12,9 +12,8 @@ let currentSession: string | null = null;
 const terminalEl = document.getElementById('terminal')!;
 const welcomeEl = document.getElementById('welcome')!;
 const sessionListEl = document.getElementById('session-list')!;
-const inputEl = document.getElementById('input') as HTMLInputElement;
-const sendBtn = document.getElementById('send-btn') as HTMLButtonElement;
 const newBtn = document.getElementById('new-btn') as HTMLButtonElement;
+const detachBtn = document.getElementById('detach-btn') as HTMLButtonElement;
 const sessionChip = document.getElementById('session-chip')!;
 const sessionNameEl = document.getElementById('session-name')!;
 const pickerEl = document.getElementById('session-picker')!;
@@ -30,6 +29,9 @@ const modalCreateBtn = document.getElementById('modal-create')!;
 
 // Initialize
 async function init(): Promise<void> {
+  // Set up event listeners
+  setupEventListeners();
+
   // Connect WebSocket
   ws = new WebSocketClient();
   ws.onMessage(handleMessage);
@@ -37,30 +39,32 @@ async function init(): Promise<void> {
   try {
     await ws.connect();
   } catch (e) {
-    console.error('Failed to connect:', e);
+    console.error('Failed to connect WebSocket:', e);
     showError('Failed to connect to server');
   }
-
-  // Set up event listeners
-  setupEventListeners();
 }
 
 function setupEventListeners(): void {
-  // Input handling
-  inputEl.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendInput();
-    }
-  });
-
-  sendBtn.addEventListener('click', sendInput);
-
-  // New session button
+  // New session button - use touchend for iOS Safari
   newBtn.addEventListener('click', showNewSessionModal);
+  newBtn.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    showNewSessionModal();
+  });
 
   // Session chip - open picker
   sessionChip.addEventListener('click', showPicker);
+  sessionChip.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    showPicker();
+  });
+
+  // Detach button
+  detachBtn.addEventListener('click', detach);
+  detachBtn.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    detach();
+  });
 
   // Picker
   pickerCloseBtn.addEventListener('click', hidePicker);
@@ -85,9 +89,11 @@ function setupEventListeners(): void {
 }
 
 function handleMessage(msg: ServerMessage): void {
+  console.log('Received message:', msg.type, msg);
   switch (msg.type) {
     case 'sessions':
-      sessions = msg.sessions;
+      sessions = msg.sessions || [];
+      console.log('Sessions received:', sessions.length, sessions);
       renderSessions();
       break;
 
@@ -232,24 +238,9 @@ function showWelcome(): void {
 function updateUI(): void {
   const hasSession = currentSession !== null;
 
-  inputEl.disabled = !hasSession;
-  sendBtn.disabled = !hasSession;
+  detachBtn.disabled = !hasSession;
   pickerDetachBtn.disabled = !hasSession;
-
   sessionNameEl.textContent = currentSession || 'No session';
-
-  if (hasSession) {
-    inputEl.placeholder = 'Type command...';
-  } else {
-    inputEl.placeholder = 'Select a session...';
-  }
-}
-
-function sendInput(): void {
-  if (!currentSession || !inputEl.value) return;
-
-  ws.input(inputEl.value + '\r');
-  inputEl.value = '';
 }
 
 function detach(): void {
