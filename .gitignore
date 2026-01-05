@@ -1,0 +1,17 @@
+# OS files
+.DS_Store
+
+# Claude Code local settings
+.claude/
+
+# Z data directory (contains secrets, machine configs)
+# This is stored at ~/.z/ not in this repo
+
+# Test helper dependencies (installed by CI or manually)
+tests/test_helper/bats-support/
+tests/test_helper/bats-assert/
+
+# z-web build artifacts
+z-web/bin/
+z-web/cmd/z-web/dist/assets/
+z-web/web/node_modules/

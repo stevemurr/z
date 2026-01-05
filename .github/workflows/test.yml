@@ -1,0 +1,54 @@
+name: Tests
+
+on:
+  push:
+    branches: [main, claude/*]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y zsh tmux
+
+      - name: Install bats-core
+        run: |
+          git clone --depth 1 https://github.com/bats-core/bats-core.git /tmp/bats-core
+          sudo /tmp/bats-core/install.sh /usr/local
+
+      - name: Install bats helpers
+        run: |
+          mkdir -p tests/test_helper
+          git clone --depth 1 https://github.com/bats-core/bats-support.git tests/test_helper/bats-support
+          git clone --depth 1 https://github.com/bats-core/bats-assert.git tests/test_helper/bats-assert
+
+      - name: Run tests
+        run: bats tests/*.bats
+
+  # Note: ShellCheck doesn't fully support zsh syntax (SC1071)
+  # We only scan bash files (.sh and .bash)
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run ShellCheck on bash files
+        run: |
+          # Find and check only .sh and .bash files (exclude test helpers which are third party)
+          shopt -s globstar nullglob
+
+          # Check install script
+          if [[ -f plugins/z/install.sh ]]; then
+            shellcheck -e SC1091 -e SC1090 plugins/z/install.sh
+          fi
+
+          # Check test helper
+          if [[ -f tests/test_helper.bash ]]; then
+            shellcheck -e SC1091 -e SC1090 -e SC2034 tests/test_helper.bash
+          fi
