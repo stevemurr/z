@@ -22,6 +22,9 @@ _z_sys() {
         rename)
             _z_sys_rename "$@"
             ;;
+        discover|scan)
+            _z_sys_discover "$@"
+            ;;
         help|--help|-h|"")
             _z_sys_help
             ;;
@@ -46,6 +49,7 @@ Commands:
       [user]            Optional SSH user (default: current user)
   rm <name>           Remove a machine
   list                List all machines with status
+  discover            Scan Tailscale network for z instances
   rename <name>       Rename this machine
   help                Show this help
 
@@ -278,6 +282,88 @@ _z_sys_list() {
             name="" host="" user=""
         fi
     done < "${Z_MACHINES_FILE}"
+
+    # Show discovered machines if available
+    local discovered=$(_z_discover 2>/dev/null)
+    if [[ -n "${discovered}" ]] && echo "${discovered}" | grep -q '"name"'; then
+        echo ""
+        echo "Discovered (auto via Tailscale):"
+        printf "  %-15s %-35s %-15s %s\n" "NAME" "HOST" "USER" "STATUS"
+        printf "  %-15s %-35s %-15s %s\n" "----" "----" "----" "------"
+
+        echo "${discovered}" | grep -E '"(name|tailscale_ip)"' | \
+            paste - - | while read -r line; do
+                local d_name=$(echo "${line}" | sed 's/.*"name": *"\([^"]*\)".*/\1/')
+                local d_ip=$(echo "${line}" | sed 's/.*"tailscale_ip": *"\([^"]*\)".*/\1/')
+
+                if [[ -n "${d_name}" && -n "${d_ip}" ]]; then
+                    printf "  %-15s %-35s %-15s %s\n" "${d_name}" "${d_ip}" "-" "discovered"
+                fi
+            done
+    fi
+}
+
+# Discover z instances on Tailscale network
+_z_sys_discover() {
+    # Check if Tailscale is available
+    if ! command -v tailscale &>/dev/null; then
+        echo "Error: Tailscale not installed"
+        return 1
+    fi
+
+    if ! tailscale status &>/dev/null; then
+        echo "Error: Tailscale not connected"
+        return 1
+    fi
+
+    echo "Scanning Tailscale network for z instances..."
+    echo ""
+
+    # Force refresh discovery cache
+    local result=$(_z_discover true 2>/dev/null)
+
+    if [[ -z "${result}" ]] || ! echo "${result}" | grep -q '"machines"'; then
+        echo "No z instances found on your Tailscale network."
+        echo ""
+        echo "Make sure other machines have:"
+        echo "  1. z installed and initialized (z sys init)"
+        echo "  2. z-beacon running (z beacon start)"
+        return 0
+    fi
+
+    # Count discovered machines
+    local count=$(echo "${result}" | grep -c '"name"' 2>/dev/null || echo 0)
+
+    if [[ ${count} -eq 0 ]]; then
+        echo "No z instances found on your Tailscale network."
+        echo ""
+        echo "Make sure other machines have:"
+        echo "  1. z installed and initialized (z sys init)"
+        echo "  2. z-beacon running (z beacon start)"
+    else
+        echo "Found ${count} z instance(s):"
+        echo ""
+        _z_sys_list_discovered "${result}"
+    fi
+}
+
+# List discovered machines (internal helper)
+_z_sys_list_discovered() {
+    local cache_data="$1"
+
+    printf "  %-15s %-20s %s\n" "NAME" "TAILSCALE IP" "STATUS"
+    printf "  %-15s %-20s %s\n" "----" "------------" "------"
+
+    # Parse machines from cache JSON
+    echo "${cache_data}" | grep -E '"(name|tailscale_ip)"' | \
+        paste - - | while read -r line; do
+            local name=$(echo "${line}" | sed 's/.*"name": *"\([^"]*\)".*/\1/')
+            local ip=$(echo "${line}" | sed 's/.*"tailscale_ip": *"\([^"]*\)".*/\1/')
+
+            if [[ -n "${name}" && -n "${ip}" ]]; then
+                printf "  %-15s %-20s %s\n" "${name}" "${ip}" "discovered"
+            fi
+        done
 }
 
 # Rename this machine

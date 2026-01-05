@@ -10,6 +10,9 @@ Z_PLUGIN_DIR="${0:h}"
 # Source core library
 source "${Z_PLUGIN_DIR}/lib/core.zsh"
 
+# Source discovery library (for auto-discovery)
+source "${Z_PLUGIN_DIR}/lib/discovery.zsh"
+
 # Source built-in modules
 for module_file in "${Z_PLUGIN_DIR}"/modules/*.zsh; do
     [[ -f "${module_file}" ]] && source "${module_file}"
@@ -120,6 +123,14 @@ z() {
                 return 1
             fi
             ;;
+        beacon)
+            if _z_module_enabled beacon; then
+                _z_beacon "$@"
+            else
+                echo "Module 'beacon' is not enabled. Run: z enable beacon"
+                return 1
+            fi
+            ;;
 
         # Default: show overview
         "")
@@ -143,3 +154,8 @@ z() {
             ;;
     esac
 }
+
+# Auto-start beacon if enabled (for machine discovery)
+if _z_module_enabled beacon; then
+    _z_beacon_autostart
+fi

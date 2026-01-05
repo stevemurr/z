@@ -14,11 +14,11 @@ Z_REGISTRY_CACHE="${Z_REGISTRY_CACHE:-${Z_DIR}/registry-cache.json}"
 
 # Built-in modules (shipped with z)
 typeset -ga Z_BUILTIN_MODULES
-Z_BUILTIN_MODULES=(env path alias app bench sys modules term web)
+Z_BUILTIN_MODULES=(env path alias app bench sys modules term web beacon)
 
 # Available modules (built-in + installed)
 typeset -ga Z_AVAILABLE_MODULES
-Z_AVAILABLE_MODULES=(env path alias app bench sys modules term web)
+Z_AVAILABLE_MODULES=(env path alias app bench sys modules term web beacon)
 
 # Get z data directory
 _z_dir() {
@@ -190,7 +190,7 @@ _z_init() {
 # Z configuration
 # Enabled modules
 typeset -ga Z_ENABLED_MODULES
-Z_ENABLED_MODULES=(env path alias app bench sys modules term web)
+Z_ENABLED_MODULES=(env path alias app bench sys modules term web beacon)
 EOF
         echo "Created ${Z_CONFIG}"
         echo "All modules enabled by default"
@@ -227,6 +227,7 @@ _z_modules_list() {
         [modules]="Module registry"
         [term]="Remote terminal sessions"
         [web]="Browser-based terminal access"
+        [beacon]="Auto-discovery beacon for Tailscale"
     )
 
     local mod_status mod_type
@@ -463,6 +464,12 @@ _z_help() {
             ;;
         term)
             _z_term help
+            ;;
+        web)
+            _z_web help
+            ;;
+        beacon)
+            _z_beacon help
             ;;
         *)
             # Check if it's an installed module

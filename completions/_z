@@ -44,6 +44,7 @@ _z() {
                 'sys:Multi-machine management'
                 'term:Remote terminal sessions'
                 'web:Browser-based terminal access'
+                'beacon:Auto-discovery beacon for Tailscale'
             )
             _describe -t commands 'z command' commands
             ;;
@@ -51,7 +52,7 @@ _z() {
             case $line[1] in
                 enable|disable)
                     local -a modules
-                    modules=(env path alias app bench sys modules term web)
+                    modules=(env path alias app bench sys modules term web beacon)
                     _describe -t modules 'module' modules
                     ;;
                 test)
@@ -61,7 +62,7 @@ _z() {
                     ;;
                 help)
                     local -a help_topics
-                    help_topics=(env path alias app bench sys modules term web)
+                    help_topics=(env path alias app bench sys modules term web beacon)
                     _describe -t help_topics 'module' help_topics
                     ;;
                 env)
@@ -90,6 +91,9 @@ _z() {
                     ;;
                 web)
                     _z_web_complete
+                    ;;
+                beacon)
+                    _z_beacon_complete
                     ;;
             esac
             ;;
@@ -380,6 +384,8 @@ _z_sys_complete() {
                 'remove:Remove a machine'
                 'list:List all machines with status'
                 'ls:List all machines with status'
+                'discover:Scan Tailscale network for z instances'
+                'scan:Scan Tailscale network for z instances'
                 'rename:Rename this machine'
                 'help:Show help'
             )
@@ -572,6 +578,28 @@ _z_term_sessions() {
         done
     fi
     _describe -t sessions 'session' sessions
+}
+
+_z_beacon_complete() {
+    local curcontext="$curcontext" state line
+    typeset -A opt_args
+
+    _arguments -C \
+        '1: :->subcmd' \
+        '*:: :->args'
+
+    case $state in
+        subcmd)
+            local -a subcmds
+            subcmds=(
+                'start:Start the beacon server'
+                'stop:Stop the beacon server'
+                'status:Show beacon status'
+                'help:Show help'
+            )
+            _describe -t subcmds 'z beacon command' subcmds
+            ;;
+    esac
 }
 
 _z "$@"
