@@ -1,6 +1,6 @@
 #!/bin/bash
 # Z - Unified shell tools installer
-# Usage: curl -fsSL https://raw.githubusercontent.com/[you]/z/main/install.sh | bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/stevemurr/z/main/install.sh | bash
 
 set -e
 
@@ -12,7 +12,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-Z_PLUGIN_DIR="${HOME}/.config/zsh/plugins/z"
+Z_INSTALL_DIR="${Z_INSTALL_DIR:-${HOME}/.local/share/z}"
 Z_DATA_DIR="${HOME}/.z"
 Z_REPO="https://github.com/stevemurr/z.git"
 
@@ -38,32 +38,28 @@ check_git() {
     success "git found"
 }
 
-# Download/update z plugin
-install_plugin() {
-    info "Installing z plugin..."
+# Download/update z
+install_z() {
+    info "Installing z..."
 
-    # Create plugins directory if needed
-    mkdir -p "$(dirname "${Z_PLUGIN_DIR}")"
+    # Create parent directory if needed
+    mkdir -p "$(dirname "${Z_INSTALL_DIR}")"
 
-    if [[ -d "${Z_PLUGIN_DIR}" ]]; then
-        info "z plugin directory exists, updating..."
-        cd "${Z_PLUGIN_DIR}"
+    if [[ -d "${Z_INSTALL_DIR}" ]]; then
+        info "z directory exists, updating..."
+        cd "${Z_INSTALL_DIR}"
         git pull --quiet 2>/dev/null || warn "Could not update (maybe not a git repo)"
         cd - > /dev/null
     else
-        info "Cloning z plugin..."
-        if git clone --quiet "${Z_REPO}" "${Z_PLUGIN_DIR}"; then
-            success "Cloned z plugin"
+        info "Cloning z..."
+        if git clone --quiet "${Z_REPO}" "${Z_INSTALL_DIR}"; then
+            success "Cloned z"
         else
-            # Fallback: create directory structure manually
-            warn "Could not clone from git, creating structure manually..."
-            mkdir -p "${Z_PLUGIN_DIR}"/{lib,modules,completions}
-            echo "# Z plugin - created manually" > "${Z_PLUGIN_DIR}/z.plugin.zsh"
-            warn "Please manually copy z plugin files to ${Z_PLUGIN_DIR}"
+            error "Could not clone z repository"
         fi
     fi
 
-    success "z plugin installed at ${Z_PLUGIN_DIR}"
+    success "z installed at ${Z_INSTALL_DIR}"
 }
 
 # Initialize z data directory
@@ -95,13 +91,13 @@ EOF
 # Add z to .zshrc
 add_to_zshrc() {
     local zshrc="${HOME}/.zshrc"
-    local source_line="source \"${Z_PLUGIN_DIR}/z.plugin.zsh\""
+    local source_line="source \"${Z_INSTALL_DIR}/z.plugin.zsh\""
 
     info "Configuring .zshrc..."
 
     # Check if already added
     if grep -q "z.plugin.zsh" "${zshrc}" 2>/dev/null; then
-        warn "z plugin already in .zshrc"
+        warn "z already in .zshrc"
         return
     fi
 
@@ -118,7 +114,7 @@ add_to_zshrc() {
 ${source_line}
 EOF
 
-    success "Added z plugin to .zshrc"
+    success "Added z to .zshrc"
 }
 
 # Setup machine name (for multi-machine support)
@@ -165,7 +161,7 @@ main() {
 
     check_zsh
     check_git
-    install_plugin
+    install_z
     init_data_dir
     add_to_zshrc
     setup_machine
