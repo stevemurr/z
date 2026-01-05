@@ -10,7 +10,7 @@ load test_helper
 
 setup() {
     # Get absolute path to plugin directory
-    Z_PLUGIN_DIR="$(cd "${BATS_TEST_DIRNAME}/../plugins/z" && pwd)"
+    Z_PLUGIN_DIR="$(cd "${BATS_TEST_DIRNAME}/.." && pwd)"
     export Z_PLUGIN_DIR
 
     # Create temp directory for test isolation
