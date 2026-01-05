@@ -43,6 +43,7 @@ _z() {
                 'bench:Performance benchmarking'
                 'sys:Multi-machine management'
                 'term:Remote terminal sessions'
+                'web:Browser-based terminal access'
             )
             _describe -t commands 'z command' commands
             ;;
@@ -50,7 +51,7 @@ _z() {
             case $line[1] in
                 enable|disable)
                     local -a modules
-                    modules=(env path alias app bench sys modules term)
+                    modules=(env path alias app bench sys modules term web)
                     _describe -t modules 'module' modules
                     ;;
                 test)
@@ -60,7 +61,7 @@ _z() {
                     ;;
                 help)
                     local -a help_topics
-                    help_topics=(env path alias app bench sys modules term)
+                    help_topics=(env path alias app bench sys modules term web)
                     _describe -t help_topics 'module' help_topics
                     ;;
                 env)
@@ -86,6 +87,9 @@ _z() {
                     ;;
                 term)
                     _z_term_complete
+                    ;;
+                web)
+                    _z_web_complete
                     ;;
             esac
             ;;
@@ -516,6 +520,40 @@ _z_term_complete() {
                     ;;
                 stop|kill)
                     _z_term_sessions
+                    ;;
+            esac
+            ;;
+    esac
+}
+
+_z_web_complete() {
+    local curcontext="$curcontext" state line
+    typeset -A opt_args
+
+    _arguments -C \
+        '1: :->subcmd' \
+        '*:: :->args'
+
+    case $state in
+        subcmd)
+            local -a subcmds
+            subcmds=(
+                'start:Start the web server'
+                'stop:Stop the web server'
+                'status:Show server status'
+                'open:Open in default browser'
+                'logs:Show server logs'
+                'help:Show help'
+            )
+            _describe -t subcmds 'z web command' subcmds
+            ;;
+        args)
+            case $line[1] in
+                start)
+                    _arguments \
+                        '-p[Port to listen on]:port:' \
+                        '--port[Port to listen on]:port:' \
+                        '--host[Host to bind to]:host:(tailscale localhost)'
                     ;;
             esac
             ;;
