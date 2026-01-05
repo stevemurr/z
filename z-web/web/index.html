@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>z web</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div id="app">
+    <div id="terminal-container">
+      <div id="terminal"></div>
+      <div id="welcome" class="welcome">
+        <h2>z web</h2>
+        <p>Select a session to begin</p>
+        <div id="session-list" class="session-list"></div>
+      </div>
+    </div>
+    <div id="input-bar">
+      <input type="text" id="input" placeholder="Type command..." disabled>
+      <div id="session-chip" class="chip">
+        <span id="session-name">No session</span>
+        <span class="arrow">▼</span>
+      </div>
+      <button id="new-btn" class="icon-btn" title="New session">+</button>
+      <button id="send-btn" class="icon-btn" title="Send" disabled>↑</button>
+    </div>
+    <div id="session-picker" class="picker hidden">
+      <div class="picker-header">
+        <span>Sessions</span>
+        <button id="picker-close" class="close-btn">✕</button>
+      </div>
+      <div id="picker-list" class="picker-list"></div>
+      <div class="picker-actions">
+        <button id="picker-new" class="action-btn">+ New Session</button>
+        <button id="picker-detach" class="action-btn" disabled>⏏ Detach</button>
+      </div>
+    </div>
+    <div id="overlay" class="overlay hidden"></div>
+    <div id="new-session-modal" class="modal hidden">
+      <div class="modal-content">
+        <h3>New Session</h3>
+        <input type="text" id="new-session-name" placeholder="Session name (optional)">
+        <div class="modal-actions">
+          <button id="modal-cancel" class="btn-secondary">Cancel</button>
+          <button id="modal-create" class="btn-primary">Create</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

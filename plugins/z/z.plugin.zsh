@@ -112,6 +112,14 @@ z() {
                 return 1
             fi
             ;;
+        web)
+            if _z_module_enabled web; then
+                _z_web "$@"
+            else
+                echo "Module 'web' is not enabled. Run: z enable web"
+                return 1
+            fi
+            ;;
 
         # Default: show overview
         "")
